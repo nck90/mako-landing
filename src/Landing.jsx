@@ -246,38 +246,88 @@ const betaPlans = [
   },
 ];
 
+const betaPlanByKey = Object.fromEntries(betaPlans.map((plan) => [plan.key, plan]));
+
 const faqs = [
   ["어떤 팀이 베타에 적합한가요?", "반복적인 카드뉴스, 블로그, SNS 계정 운영, 캠페인 예약 발행을 한 흐름으로 관리해야 하는 브랜드팀과 에이전시에 적합합니다."],
   ["기존 자료를 업로드해야 하나요?", "네. 브로슈어, 제품 자료, 리뷰, 이미지, 금칙 표현이 많을수록 생성 근거와 브랜드 보이스가 명확해집니다."],
   ["가격은 어디서 확인하나요?", "현재 공개 가격표는 열지 않습니다. 베타 신청 후 도입 범위와 사용량을 확인해 별도로 안내합니다."],
-  ["베타 신청 후 무엇을 받나요?", "신청서를 제출하면 대기번호가 발급되고, 운영자 검토 후 온보딩 가능 여부와 다음 안내를 이메일로 전달합니다."],
+  ["베타 신청 후 무엇을 받나요?", "신청서를 제출하면 접수번호가 발급되고, 운영자에게 신청 내용이 바로 전달됩니다. 검토 후 온보딩 가능 여부와 다음 안내를 연락처 기준으로 전달합니다."],
   ["계정과 자료는 조직별로 분리되나요?", "승인된 조직 기준으로 브랜드와 자료 접근을 분리하는 구조로 운영합니다."],
 ];
 
 const isStaticDeploy = import.meta.env.VITE_STATIC_DEPLOY === "true";
+const betaApplicationWebhookUrl = "https://discord.com/api/webhooks/1509667940239147088/dDfVABx2UKWkbwf1dLRhlMEdM4iTU9v__D6KFl3iBZxz_Jlz32ca4WjtgxghfrjdPKi-";
 
-function buildApplicationMailto(form) {
-  const subject = `[MAKO 베타 신청] ${form.company || form.name || "신규 신청"}`;
-  const lines = [
-    `회사/브랜드: ${form.company}`,
-    `웹사이트: ${form.website}`,
-    `이름: ${form.name}`,
-    `역할: ${form.role}`,
-    `이메일: ${form.email}`,
-    `전화번호: ${form.phone}`,
-    `팀 규모: ${form.teamSize}`,
-    `월 콘텐츠량: ${form.monthlyVolume}`,
-    `주요 채널: ${form.channels}`,
-    `도입 시점: ${form.timeline}`,
-    `예산 범위: ${form.budget}`,
-    "",
-    "현재 콘텐츠 운영 문제:",
-    form.problem,
-    "",
-    "추가 메모:",
-    form.memo,
-  ];
-  return `mailto:contact@hyphen.it.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+function createWaitNumber() {
+  const now = new Date();
+  const datePart = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("");
+  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `MAKO-${datePart}-${randomPart}`;
+}
+
+function fieldValue(value) {
+  const text = String(value || "").trim();
+  return text || "-";
+}
+
+function buildDiscordPayload(form, waitNumber) {
+  const plan = betaPlanByKey[form.interestPlan] || betaPlans[0];
+  const submittedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+  return {
+    username: "MAKO Beta",
+    content: `새 베타 신청이 접수되었습니다. (${plan.badge} · ${plan.title})`,
+    embeds: [
+      {
+        title: "MAKO 베타 신청",
+        color: 0x003f33,
+        description: [
+          `**접수번호:** ${waitNumber}`,
+          `**신청 유형:** ${plan.badge} · ${plan.title}`,
+          `**접수 시각:** ${submittedAt}`,
+        ].join("\n"),
+        fields: [
+          { name: "회사/브랜드", value: fieldValue(form.company), inline: true },
+          { name: "웹사이트", value: fieldValue(form.website), inline: true },
+          { name: "신청자", value: `${fieldValue(form.name)} / ${fieldValue(form.role)}`, inline: true },
+          { name: "이메일", value: fieldValue(form.email), inline: true },
+          { name: "전화번호", value: fieldValue(form.phone), inline: true },
+          { name: "팀 규모", value: fieldValue(form.teamSize), inline: true },
+          { name: "월 콘텐츠량", value: fieldValue(form.monthlyVolume), inline: true },
+          { name: "주요 채널", value: fieldValue(form.channels), inline: true },
+          { name: "도입 시점", value: fieldValue(form.timeline), inline: true },
+          { name: "예산 범위", value: fieldValue(form.budget), inline: true },
+          { name: "현재 콘텐츠 운영 문제", value: fieldValue(form.problem).slice(0, 1000), inline: false },
+          { name: "추가 메모", value: fieldValue(form.memo).slice(0, 1000), inline: false },
+        ],
+        footer: { text: "mako-landing.hyphen.it.com" },
+      },
+    ],
+  };
+}
+
+async function sendDiscordWebhook(payload) {
+  try {
+    const response = await fetch(betaApplicationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (response.ok) return;
+  } catch {
+    // Browser CORS policies can vary by webhook gateway. Fall through to beacon-friendly multipart.
+  }
+  const body = new FormData();
+  body.append("payload_json", JSON.stringify(payload));
+  await fetch(betaApplicationWebhookUrl, {
+    method: "POST",
+    mode: "no-cors",
+    body,
+  });
 }
 
 function track(eventType, metadata = {}) {
@@ -395,14 +445,21 @@ function Landing() {
     setNotice({ type: "", text: "" });
     try {
       if (isStaticDeploy) {
-        window.location.href = buildApplicationMailto(form);
-        setNotice({ type: "ok", text: "메일 작성 창을 열었습니다. 작성된 신청 내용을 확인한 뒤 발송해 주세요." });
+        const waitNumber = createWaitNumber();
+        await sendDiscordWebhook(buildDiscordPayload(form, waitNumber));
+        setNotice({ type: "ok", text: `신청이 접수되었습니다. 접수번호: ${waitNumber}` });
+        setForm(initialForm);
         return;
       }
+      const selectedPlan = betaPlanByKey[form.interestPlan] || betaPlans[0];
       const res = await fetch("/api/public/beta-applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, path: window.location.pathname }),
+        body: JSON.stringify({
+          ...form,
+          interestPlanLabel: `${selectedPlan.badge} · ${selectedPlan.title}`,
+          path: window.location.pathname,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "신청 접수에 실패했습니다.");
