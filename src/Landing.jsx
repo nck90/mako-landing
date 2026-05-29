@@ -8,6 +8,7 @@ import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import FileCheck2 from "lucide-react/dist/esm/icons/file-check-2.mjs";
 import FolderSearch from "lucide-react/dist/esm/icons/folder-search.mjs";
+import Gift from "lucide-react/dist/esm/icons/gift.mjs";
 import Languages from "lucide-react/dist/esm/icons/languages.mjs";
 import Menu from "lucide-react/dist/esm/icons/menu.mjs";
 import MessageSquareText from "lucide-react/dist/esm/icons/message-square-text.mjs";
@@ -23,6 +24,12 @@ import X from "lucide-react/dist/esm/icons/x.mjs";
 import "./landing.css";
 
 const screen = (name) => `${import.meta.env.BASE_URL}cardops-screen-${name}.webp`;
+const eventAsset = (name) => `${import.meta.env.BASE_URL}events/${name}`;
+const betaEvent = {
+  popupImage: eventAsset("mako-beta-popup.png"),
+  detailImage: eventAsset("mako-beta-detail.png"),
+  deadline: "2026년 6월 5일",
+};
 const olidiaCardNews = [1, 2, 3, 4, 5].map((number) => ({
   number,
   src: `${import.meta.env.BASE_URL}olidia-cardnews-0${number}.png`,
@@ -291,6 +298,8 @@ function Landing() {
   const [lang, setLang] = useState(() => localStorage.getItem("cardops.landing.lang") || "ko");
   const [menuOpen, setMenuOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [eventPopupOpen, setEventPopupOpen] = useState(window.location.pathname !== "/event");
+  const [path, setPath] = useState(window.location.pathname);
   const [openFaq, setOpenFaq] = useState(faqs[0][0]);
   const [heroLineIndex, setHeroLineIndex] = useState(0);
   const t = copy[lang] || copy.ko;
@@ -300,6 +309,12 @@ function Landing() {
 
   useEffect(() => {
     track("view");
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   useEffect(() => {
@@ -345,12 +360,33 @@ function Landing() {
 
   function scrollToApply() {
     setContactOpen(false);
+    if (path === "/event") {
+      window.history.pushState({}, "", "/#apply");
+      setPath("/");
+      window.setTimeout(() => {
+        document.getElementById("apply")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 40);
+      return;
+    }
     document.getElementById("apply")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function selectPlan(planKey) {
     update("interestPlan", planKey);
     document.getElementById("apply")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openEventDetail() {
+    setEventPopupOpen(false);
+    window.history.pushState({}, "", "/event");
+    setPath("/event");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeEventDetail() {
+    window.history.pushState({}, "", "/");
+    setPath("/");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function submit(event) {
@@ -378,6 +414,15 @@ function Landing() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (path === "/event") {
+    return (
+      <EventDetailPage
+        onBack={closeEventDetail}
+        onApply={scrollToApply}
+      />
+    );
   }
 
   return (
@@ -625,6 +670,78 @@ function Landing() {
           </section>
         </div>
       ) : null}
+      {eventPopupOpen ? (
+        <BetaEventPopup
+          onClose={() => setEventPopupOpen(false)}
+          onDetail={openEventDetail}
+          onApply={() => {
+            setEventPopupOpen(false);
+            scrollToApply();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function EventDetailPage({ onBack, onApply }) {
+  return (
+    <div className="landing-page event-page">
+      <header className="site-nav">
+        <button type="button" className="brand-lockup event-back-brand" onClick={onBack}>
+          <strong>MAKO</strong>
+          <small>Beta Event</small>
+        </button>
+        <nav aria-label="이벤트 내비게이션">
+          <button type="button" className="nav-text-button" onClick={onBack}>서비스 보기</button>
+          <button type="button" className="nav-cta" onClick={onApply}>베타 신청 <ArrowRight size={15} /></button>
+        </nav>
+      </header>
+      <main className="event-detail-page">
+        <section className="event-detail-visual">
+          <img src={betaEvent.detailImage} alt="MAKO 베타 신청 이벤트 안내" />
+        </section>
+        <section className="event-detail-copy">
+          <p className="eyebrow">BETA APPLICATION EVENT</p>
+          <h1>6월 5일까지 신청하면, MAKO 도입 방향을 함께 설계해드립니다.</h1>
+          <p>초기 베타 신청 팀에게 무료 컨설팅과 맞춤형 제작비 지원 검토를 제공합니다. 브랜드 자료와 운영 목표를 기준으로 랜딩페이지, 카드뉴스, 블로그, 카페, 쓰레드까지 실제 실행 가능한 산출물 패키지로 정리합니다.</p>
+          <button type="button" className="primary-action" onClick={onApply}>베타 신청하기 <ArrowRight size={18} /></button>
+        </section>
+        <section className="event-benefits">
+          <article><span>01</span><h2>무료 컨설팅</h2><p>현재 콘텐츠 운영 구조, 브랜드 자료, 전환 목표를 기준으로 우선 제작해야 할 산출물과 캠페인 흐름을 정리합니다.</p></article>
+          <article><span>02</span><h2>맞춤형 제작비 지원</h2><p>베타 대상 팀은 초기 제작 범위에 따라 랜딩페이지와 콘텐츠 제작비 지원 가능 여부를 함께 검토합니다.</p></article>
+          <article><span>03</span><h2>실행 산출물 제안</h2><p>카드뉴스, 블로그, 카페, 쓰레드의 역할을 나누고 브랜드별 후킹과 메시지를 실제 검수 가능한 형태로 제안합니다.</p></article>
+        </section>
+        <section className="event-process">
+          <h2>진행 방식</h2>
+          <ol>
+            <li><strong>신청 접수</strong><span>베타 신청서로 브랜드와 필요한 채널을 남깁니다.</span></li>
+            <li><strong>자료 검토</strong><span>브로슈어, 기존 게시물, 제품 설명을 바탕으로 맞춤 범위를 확인합니다.</span></li>
+            <li><strong>컨설팅</strong><span>콘텐츠 운영 우선순위와 제작 방향을 함께 결정합니다.</span></li>
+            <li><strong>제작 제안</strong><span>지원 가능 범위, 일정, 첫 산출물 패키지를 안내합니다.</span></li>
+          </ol>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function BetaEventPopup({ onClose, onDetail, onApply }) {
+  return (
+    <div className="event-popup-backdrop" role="dialog" aria-modal="true" aria-label="MAKO 베타 신청 이벤트">
+      <section className="event-popup">
+        <button type="button" className="event-popup-close" aria-label="닫기" onClick={onClose}><X size={18} /></button>
+        <img src={betaEvent.popupImage} alt="6월 5일까지 MAKO 베타 신청 이벤트" />
+        <div className="event-popup-copy">
+          <span><Gift size={15} /> {betaEvent.deadline}까지</span>
+          <h2>무료 컨설팅과 맞춤형 제작비 지원을 받을 수 있는 베타 신청 이벤트입니다.</h2>
+          <p>브랜드 자료를 기반으로 랜딩페이지, 카드뉴스, 블로그, 카페, 쓰레드까지 실제 운영 가능한 산출물 방향을 함께 잡아드립니다.</p>
+          <div>
+            <button type="button" onClick={onApply}>지금 신청하기</button>
+            <button type="button" onClick={onDetail}>상세 안내 보기</button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
