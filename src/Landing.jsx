@@ -8,7 +8,6 @@ import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import FileCheck2 from "lucide-react/dist/esm/icons/file-check-2.mjs";
 import FolderSearch from "lucide-react/dist/esm/icons/folder-search.mjs";
-import Gift from "lucide-react/dist/esm/icons/gift.mjs";
 import Languages from "lucide-react/dist/esm/icons/languages.mjs";
 import Menu from "lucide-react/dist/esm/icons/menu.mjs";
 import MessageSquareText from "lucide-react/dist/esm/icons/message-square-text.mjs";
@@ -26,9 +25,7 @@ import "./landing.css";
 const screen = (name) => `${import.meta.env.BASE_URL}cardops-screen-${name}.webp`;
 const eventAsset = (name) => `${import.meta.env.BASE_URL}events/${name}`;
 const betaEvent = {
-  popupImage: eventAsset("mako-beta-popup.png"),
   detailImage: eventAsset("mako-beta-detail.png"),
-  deadline: "2026년 6월 5일",
 };
 const olidiaCardNews = [1, 2, 3, 4, 5].map((number) => ({
   number,
@@ -348,7 +345,6 @@ function Landing() {
   const [lang, setLang] = useState(() => localStorage.getItem("cardops.landing.lang") || "ko");
   const [menuOpen, setMenuOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
-  const [eventPopupOpen, setEventPopupOpen] = useState(window.location.pathname !== "/event");
   const [path, setPath] = useState(window.location.pathname);
   const [openFaq, setOpenFaq] = useState(faqs[0][0]);
   const [heroLineIndex, setHeroLineIndex] = useState(0);
@@ -424,13 +420,6 @@ function Landing() {
   function selectPlan(planKey) {
     update("interestPlan", planKey);
     document.getElementById("apply")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function openEventDetail() {
-    setEventPopupOpen(false);
-    window.history.pushState({}, "", "/event");
-    setPath("/event");
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeEventDetail() {
@@ -727,16 +716,6 @@ function Landing() {
           </section>
         </div>
       ) : null}
-      {eventPopupOpen ? (
-        <BetaEventPopup
-          onClose={() => setEventPopupOpen(false)}
-          onDetail={openEventDetail}
-          onApply={() => {
-            setEventPopupOpen(false);
-            scrollToApply();
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -779,26 +758,6 @@ function EventDetailPage({ onBack, onApply }) {
           </ol>
         </section>
       </main>
-    </div>
-  );
-}
-
-function BetaEventPopup({ onClose, onDetail, onApply }) {
-  return (
-    <div className="event-popup-backdrop" role="dialog" aria-modal="true" aria-label="MAKO 베타 신청 이벤트">
-      <section className="event-popup">
-        <button type="button" className="event-popup-close" aria-label="닫기" onClick={onClose}><X size={18} /></button>
-        <img src={betaEvent.popupImage} alt="6월 5일까지 MAKO 베타 신청 이벤트" />
-        <div className="event-popup-copy">
-          <span><Gift size={15} /> {betaEvent.deadline}까지</span>
-          <h2>무료 컨설팅과 맞춤형 제작비 지원을 받을 수 있는 베타 신청 이벤트입니다.</h2>
-          <p>브랜드 자료를 기반으로 랜딩페이지, 카드뉴스, 블로그, 카페, 쓰레드까지 실제 운영 가능한 산출물 방향을 함께 잡아드립니다.</p>
-          <div>
-            <button type="button" onClick={onApply}>지금 신청하기</button>
-            <button type="button" onClick={onDetail}>상세 안내 보기</button>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
